@@ -4,7 +4,17 @@ import requests
 from flask import has_app_context
 from sqlalchemy.orm import joinedload, sessionmaker
 
-from CTFd.models import Challenges, Fails, Partials, Ratelimiteds, Solves, Teams, Users
+from CTFd.models import (
+    Challenges,
+    Fails,
+    Hints,
+    Partials,
+    Ratelimiteds,
+    Solves,
+    Teams,
+    Unlocks,
+    Users,
+)
 from CTFd.utils import get_config
 
 from .constants import DELIVERY_TIMEOUT_SECONDS, EVENT_FIRST_BLOOD, EVENT_LABELS
@@ -55,6 +65,7 @@ def _dispatch_event(event):
             event["event_type"],
             record,
             event.get("base_url"),
+            occurred_at=event.get("occurred_at"),
         )
 
         if event["event_type"] == "challenge_solved" and _is_first_blood(session, record):
@@ -68,21 +79,25 @@ def _dispatch_event(event):
         session.close()
 
 
-def build_event_payload(event_type, record, base_url=None, is_private=False):
+def build_event_payload(event_type, record, base_url=None, is_private=False, occurred_at=None):
     challenge = getattr(record, "challenge", None)
     user = getattr(record, "user", record if isinstance(record, Users) else None)
-    team = getattr(record, "team", None)
+    team = getattr(record, "team", record if isinstance(record, Teams) else None)
+    hint = getattr(record, "hint", None)
 
     if team is None and user is not None:
         team = getattr(user, "team", None)
 
-    occurred_at = getattr(record, "date", None) or getattr(record, "created", None)
+    if occurred_at is not None:
+        event_date = occurred_at
+    else:
+        event_date = getattr(record, "date", None) or getattr(record, "created", None)
     account = _serialize_account(user=user, team=team)
 
     payload = {
         "event": event_type,
         "event_label": EVENT_LABELS.get(event_type, event_type),
-        "occurred_at": _isoformat(occurred_at),
+        "occurred_at": _isoformat(event_date),
         "visibility": "private" if is_private else "public",
         "ctfd": {
             "name": get_config("ctf_name"),
@@ -92,6 +107,7 @@ def build_event_payload(event_type, record, base_url=None, is_private=False):
         "user": _serialize_user(user, is_private=is_private),
         "team": _serialize_team(team, is_private=is_private),
         "challenge": _serialize_challenge(challenge),
+        "hint": _serialize_hint(hint),
         "submission": _serialize_submission(record),
         "links": _build_links(
             challenge=challenge,
@@ -105,7 +121,7 @@ def build_event_payload(event_type, record, base_url=None, is_private=False):
     return payload
 
 
-def _deliver_to_subscribers(session, event_type, record, base_url):
+def _deliver_to_subscribers(session, event_type, record, base_url, occurred_at=None):
     subscribers = (
         session.query(WebhookEndpoint)
         .join(WebhookSubscription)
@@ -125,6 +141,7 @@ def _deliver_to_subscribers(session, event_type, record, base_url):
             record,
             base_url=base_url,
             is_private=webhook.is_private,
+            occurred_at=occurred_at,
         )
         payload["message"] = render_event_message(
             event_type,
@@ -202,6 +219,18 @@ def _mark_delivery_result(webhook_id, success, error_message):
         session.close()
 
 
+# Unlocks rows have no relationships; this exposes the related rows as attributes.
+class _HintUnlockEvent:
+
+    def __init__(self, unlock, hint, user, team):
+        self.id = unlock.id
+        self.date = unlock.date
+        self.user = user
+        self.team = team
+        self.hint = hint
+        self.challenge = hint.challenge if hint is not None else None
+
+
 def _load_record(session, event):
     event_type = event["event_type"]
     record_id = event["record_id"]
@@ -257,7 +286,37 @@ def _load_record(session, event):
             .filter_by(id=record_id)
             .first()
         )
+    if event_type == "hint_used":
+        return _load_hint_unlock(session, record_id)
+    if event_type == "team_created":
+        return session.query(Teams).filter_by(id=record_id).first()
+    if event_type == "user_joined_team":
+        return (
+            session.query(Users)
+            .options(joinedload(Users.team))
+            .filter_by(id=record_id)
+            .first()
+        )
     return None
+
+
+def _load_hint_unlock(session, record_id):
+    unlock = session.query(Unlocks).filter_by(id=record_id).first()
+    if unlock is None:
+        return None
+
+    hint = session.query(Hints).filter_by(id=unlock.target).first()
+    user = (
+        session.query(Users).filter_by(id=unlock.user_id).first()
+        if unlock.user_id
+        else None
+    )
+    team = (
+        session.query(Teams).filter_by(id=unlock.team_id).first()
+        if unlock.team_id
+        else None
+    )
+    return _HintUnlockEvent(unlock, hint, user, team)
 
 
 def _is_first_blood(session, solve):
@@ -338,8 +397,22 @@ def _serialize_challenge(challenge):
     }
 
 
+def _serialize_hint(hint):
+    if hint is None:
+        return None
+    data = {
+        "id": hint.id,
+        "title": hint.title,
+        "name": hint.name,
+        "challenge_id": hint.challenge_id,
+    }
+    if hint.cost is not None:
+        data["cost"] = hint.cost
+    return data
+
+
 def _serialize_submission(record):
-    if isinstance(record, Users):
+    if isinstance(record, (Users, Teams, Unlocks, _HintUnlockEvent)):
         return None
     data = {
         "id": record.id,

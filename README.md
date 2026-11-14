@@ -51,6 +51,9 @@ Each webhook can store:
 | `new_registration` | A user registers through the public registration flow |
 | `challenge_partial` | A partial submission is recorded |
 | `rate_limited` | A submission is recorded as rate-limited |
+| `hint_used` | A user unlocks a challenge hint |
+| `team_created` | A new team is created |
+| `user_joined_team` | A user is assigned to a team |
 
 ## Providers
 
@@ -62,6 +65,14 @@ Each webhook can store:
 ## Compatibility
 
 Challenge activity hooks are emitted from the standard CTFd persistence layer by observing `Solves`, `Fails`, `Partials`, and `Ratelimiteds`. Challenge events therefore continue to work for plugin-provided challenge types as long as they record normal CTFd submission rows.
+
+`hint_used` observes the `Unlocks` table (type `hints`), so it fires whenever a user unlocks a hint, regardless of how the unlock is requested.
+
+`team_created` observes team inserts, so it fires for teams created through the public team-creation flow as well as teams created by admins.
+
+`user_joined_team` observes changes to `Users.team_id`. CTFd does not store team membership history, so the payload's `occurred_at` reflects the detection time rather than a persisted join timestamp. The event fires when a user joins through the public flow, when a captain creates a team, and when an admin assigns an existing user to a team. Users created directly into a team do not emit the event.
+
+Rows written in bulk by CTFd imports emit events as well.
 
 `new_registration` is scoped to the public registration flow. Admin-created users and import paths are intentionally ignored.
 
@@ -106,6 +117,7 @@ The `generic_json` provider sends the plugin's canonical payload shape. Example 
     "value": 100,
     "state": "visible"
   },
+  "hint": null,
   "submission": {
     "id": 91,
     "status": "correct",
@@ -138,6 +150,8 @@ Common values include:
 - `{{ challenge.value }}`
 - `{{ user.name }}`
 - `{{ team.name }}`
+- `{{ hint.title }}`
+- `{{ hint.cost }}`
 - `{{ submission.status }}`
 - `{{ submission.provided }}`
 - `{{ links.primary }}`
