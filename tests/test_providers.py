@@ -60,6 +60,52 @@ def test_discord_provider_formats_first_blood_prettily():
     )
 
 
+def test_discord_provider_formats_hint_used_prettily():
+    payload = _sample_payload()
+    payload["event"] = constants.EVENT_HINT_USED
+    payload["message"] = "blue-team / alice used a hint on Warmup: Look at the headers."
+    payload["hint"] = {"id": 3, "title": "Look at the headers", "cost": 20}
+
+    discord_payload = providers.build_provider_payload(
+        constants.PROVIDER_DISCORD,
+        payload,
+    )
+
+    assert discord_payload["embeds"][0]["title"] == "Hint Used: Warmup"
+    assert (
+        discord_payload["embeds"][0]["description"]
+        == "blue-team / alice used a hint on Warmup: Look at the headers."
+    )
+    hint_field = next(
+        field for field in discord_payload["embeds"][0]["fields"] if field["name"] == "Hint"
+    )
+    assert hint_field["value"] == "Look at the headers"
+
+
+def test_discord_provider_formats_team_events_prettily():
+    team_created_payload = _sample_payload()
+    team_created_payload["event"] = constants.EVENT_TEAM_CREATED
+    team_created_payload["message"] = "blue-team created a team."
+
+    team_created = providers.build_provider_payload(
+        constants.PROVIDER_DISCORD,
+        team_created_payload,
+    )
+
+    assert team_created["embeds"][0]["title"] == "Team Created: blue-team"
+
+    joined_payload = _sample_payload()
+    joined_payload["event"] = constants.EVENT_USER_JOINED_TEAM
+    joined_payload["message"] = "alice joined team blue-team."
+
+    joined = providers.build_provider_payload(
+        constants.PROVIDER_DISCORD,
+        joined_payload,
+    )
+
+    assert joined["embeds"][0]["title"] == "New Team Member: blue-team"
+
+
 def test_discord_provider_includes_attempted_submission_for_failed_flags():
     payload = _sample_payload()
     payload["event"] = constants.EVENT_FAILED_FLAG

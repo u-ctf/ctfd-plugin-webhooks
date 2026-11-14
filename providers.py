@@ -9,6 +9,9 @@ EVENT_COLORS = {
     "new_registration": 0x1F6FB2,
     "challenge_partial": 0xCC7A00,
     "rate_limited": 0x6C757D,
+    "hint_used": 0x8E44AD,
+    "team_created": 0x16A085,
+    "user_joined_team": 0x2E86C1,
 }
 
 
@@ -44,6 +47,7 @@ def render_event_title(event_payload):
     event_type = event_payload["event"]
     challenge = event_payload.get("challenge")
     user = event_payload.get("user")
+    team = event_payload.get("team")
 
     if event_type == "first_blood" and challenge:
         return f"First Blood: {challenge['name']}"
@@ -55,6 +59,12 @@ def render_event_title(event_payload):
         return f"Partial Solve: {challenge['name']}"
     if event_type == "rate_limited" and challenge:
         return f"Rate Limited: {challenge['name']}"
+    if event_type == "hint_used" and challenge:
+        return f"Hint Used: {challenge['name']}"
+    if event_type == "team_created" and team:
+        return f"Team Created: {team['name']}"
+    if event_type == "user_joined_team" and team:
+        return f"New Team Member: {team['name']}"
     if event_type == "new_registration" and user:
         return f"New Registration: {user['name']}"
     return EVENT_LABELS.get(event_type, event_type)
@@ -85,6 +95,15 @@ def render_event_fields(event_payload):
         fields.append({"name": "Team", "value": team["name"], "inline": True})
     if user:
         fields.append({"name": "User", "value": user["name"], "inline": True})
+    hint = event_payload.get("hint")
+    if hint:
+        fields.append(
+            {
+                "name": "Hint",
+                "value": hint.get("title") or hint.get("name") or f"Hint {hint.get('id')}",
+                "inline": True,
+            }
+        )
     if event_payload.get("event") == "failed_flag" and submission.get("provided"):
         fields.append(
             {

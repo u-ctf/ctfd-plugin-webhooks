@@ -88,6 +88,7 @@ def _validation_payload():
             "value": 100,
             "state": "visible",
         },
+        "hint": None,
         "submission": {
             "id": 19,
             "status": "correct",

@@ -7,6 +7,9 @@ EVENT_FAILED_FLAG = "failed_flag"
 EVENT_NEW_REGISTRATION = "new_registration"
 EVENT_CHALLENGE_PARTIAL = "challenge_partial"
 EVENT_RATE_LIMITED = "rate_limited"
+EVENT_HINT_USED = "hint_used"
+EVENT_TEAM_CREATED = "team_created"
+EVENT_USER_JOINED_TEAM = "user_joined_team"
 
 DEFAULT_EVENT_TEMPLATES = {
     EVENT_FIRST_BLOOD: "{{ actor }} claimed first blood on {{ challenge.name }}{% if challenge.value %} for {{ challenge.value }} points{% endif %}.",
@@ -15,6 +18,9 @@ DEFAULT_EVENT_TEMPLATES = {
     EVENT_NEW_REGISTRATION: "{{ user.name }} completed a new registration.",
     EVENT_CHALLENGE_PARTIAL: "{{ actor }} submitted a partial solve on {{ challenge.name }}.",
     EVENT_RATE_LIMITED: "{{ actor }} hit a submission limit on {{ challenge.name }}.",
+    EVENT_HINT_USED: "{{ actor }} used a hint on {{ challenge.name }}{% if hint.title %}: {{ hint.title }}{% endif %}.",
+    EVENT_TEAM_CREATED: "{{ team.name }} created a team.",
+    EVENT_USER_JOINED_TEAM: "{{ user.name }} joined team {{ team.name }}.",
 }
 
 TEMPLATE_VARIABLE_HINTS = [
@@ -34,6 +40,8 @@ TEMPLATE_VARIABLE_HINTS = [
     "{{ user.email }}",
     "{{ team.name }}",
     "{{ team.email }}",
+    "{{ hint.title }}",
+    "{{ hint.cost }}",
     "{{ submission.status }}",
     "{{ submission.provided }}",
     "{{ links.primary }}",
@@ -90,6 +98,24 @@ EVENT_OPTIONS = [
         "label": "Rate limited",
         "description": "Triggered when a submission is recorded as rate limited.",
         "default_template": DEFAULT_EVENT_TEMPLATES[EVENT_RATE_LIMITED],
+    },
+    {
+        "value": EVENT_HINT_USED,
+        "label": "Hint used",
+        "description": "Triggered when a user unlocks a challenge hint.",
+        "default_template": DEFAULT_EVENT_TEMPLATES[EVENT_HINT_USED],
+    },
+    {
+        "value": EVENT_TEAM_CREATED,
+        "label": "Team created",
+        "description": "Triggered when a new team is created.",
+        "default_template": DEFAULT_EVENT_TEMPLATES[EVENT_TEAM_CREATED],
+    },
+    {
+        "value": EVENT_USER_JOINED_TEAM,
+        "label": "User joined team",
+        "description": "Triggered when a user is assigned to a team.",
+        "default_template": DEFAULT_EVENT_TEMPLATES[EVENT_USER_JOINED_TEAM],
     },
 ]
 

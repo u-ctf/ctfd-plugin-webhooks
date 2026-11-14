@@ -23,6 +23,63 @@ def test_render_event_message_uses_default_template():
     assert result == "blue-team / alice claimed first blood on Warmup for 100 points."
 
 
+def test_render_hint_used_message_uses_default_template():
+    payload = {
+        "actor": "blue-team / alice",
+        "challenge": {"name": "Warmup", "value": 100},
+        "hint": {"id": 3, "title": "Look at the headers", "cost": 20},
+        "submission": {},
+        "user": {"name": "alice"},
+        "team": {"name": "blue-team"},
+        "links": {},
+    }
+
+    result = message_templates.render_event_message(
+        constants.EVENT_HINT_USED,
+        payload,
+    )
+
+    assert result == "blue-team / alice used a hint on Warmup: Look at the headers."
+
+
+def test_render_team_created_message_uses_default_template():
+    payload = {
+        "actor": "blue-team",
+        "challenge": {},
+        "hint": {},
+        "submission": {},
+        "user": {},
+        "team": {"name": "blue-team"},
+        "links": {},
+    }
+
+    result = message_templates.render_event_message(
+        constants.EVENT_TEAM_CREATED,
+        payload,
+    )
+
+    assert result == "blue-team created a team."
+
+
+def test_render_user_joined_team_message_uses_default_template():
+    payload = {
+        "actor": "blue-team / alice",
+        "challenge": {},
+        "hint": {},
+        "submission": {},
+        "user": {"name": "alice"},
+        "team": {"name": "blue-team"},
+        "links": {},
+    }
+
+    result = message_templates.render_event_message(
+        constants.EVENT_USER_JOINED_TEAM,
+        payload,
+    )
+
+    assert result == "alice joined team blue-team."
+
+
 def test_render_event_message_uses_custom_template():
     payload = {
         "actor": "blue-team / alice",
